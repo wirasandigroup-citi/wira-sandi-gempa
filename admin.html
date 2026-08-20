@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kelola Peserta — Wira Sandi Gempa Monitoring</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a1a18;--ink2:#2e2e2b;--ink3:#5a5a55;--ink4:#8a8a82;--surf:#fff;--bg:#e8e8e5;--edge:#d8d8d2;--edge2:#c5c5bd;--red:#d42b2b;--red-l:#fbe5e5;--green:#2f8f4e;--green-l:#e5f5ea;--amber:#b8860b;--amber-l:#fbf1de;--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:var(--bg);font-family:var(--sans);color:var(--ink);}
+  header{background:var(--ink);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;}
+  header .brand{font-family:var(--mono);font-weight:800;font-size:13px;letter-spacing:1.5px;}
+  header a{color:#fff;text-decoration:none;font-size:12px;font-weight:600;border:1px solid rgba(255,255,255,.3);padding:7px 14px;border-radius:2px;}
+  header a:hover{background:rgba(255,255,255,.1);}
+  main{max-width:900px;margin:0 auto;padding:28px 20px 60px;}
+  h1{font-size:17px;margin:0 0 4px;}
+  .sub{font-size:12px;color:var(--ink4);font-family:var(--mono);text-transform:uppercase;letter-spacing:.5px;margin-bottom:20px;}
+  table{width:100%;border-collapse:collapse;background:var(--surf);border:1px solid var(--edge);}
+  th,td{padding:10px 12px;text-align:left;font-size:12.5px;border-bottom:1px solid var(--edge);}
+  th{background:var(--bg);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);}
+  tr:last-child td{border-bottom:none;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+  .badge.admin{background:var(--red-l);color:var(--red);}
+  .badge.member{background:var(--bg);color:var(--ink3);}
+  .badge.approved{background:var(--green-l);color:var(--green);}
+  .badge.pending{background:var(--amber-l);color:var(--amber);}
+  .actions{display:flex;gap:6px;flex-wrap:wrap;}
+  .actions button{border:1px solid var(--edge2);background:var(--surf);padding:5px 10px;font-size:11px;font-weight:600;border-radius:2px;cursor:pointer;}
+  .actions button.approve{border-color:var(--green);color:var(--green);}
+  .actions button.approve:hover{background:var(--green-l);}
+  .actions button.promote{border-color:var(--red);color:var(--red);}
+  .actions button.promote:hover{background:var(--red-l);}
+  .actions button.demote,.actions button.reject,.actions button.delete{color:var(--ink3);}
+  .actions button.delete:hover,.actions button.reject:hover{background:var(--red-l);border-color:var(--red);color:var(--red);}
+  .empty{padding:30px;text-align:center;color:var(--ink4);font-size:13px;}
+  .msg{margin-bottom:14px;font-size:12px;padding:9px 11px;border-radius:2px;display:none;}
+  .msg.err{background:var(--red-l);color:var(--red);display:block;}
+  .msg.ok{background:var(--green-l);color:var(--green);display:block;}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">WIRA SANDI · KELOLA PESERTA</div>
+  <a href="/">&larr; Kembali ke Dashboard</a>
+</header>
+<main>
+  <h1>Daftar Peserta</h1>
+  <div class="sub">Approval &amp; manajemen role akun</div>
+  <div class="msg" id="msg"></div>
+  <table id="userTable" style="display:none">
+    <thead>
+      <tr><th>Nama</th><th>Email</th><th>Role</th><th>Status</th><th>Daftar</th><th>Aksi</th></tr>
+    </thead>
+    <tbody id="userBody"></tbody>
+  </table>
+  <div class="empty" id="emptyState">Memuat data…</div>
+</main>
+<script>
+async function loadUsers(){
+  const msg = document.getElementById('msg');
+  const table = document.getElementById('userTable');
+  const body = document.getElementById('userBody');
+  const empty = document.getElementById('emptyState');
+  try{
+    const res = await fetch('/api/admin/users');
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      empty.textContent = err.error || 'Gagal memuat data (khusus admin).';
+      return;
+    }
+    const data = await res.json();
+    const users = data.users || [];
+    if(users.length === 0){
+      empty.textContent = 'Belum ada peserta terdaftar.';
+      return;
+    }
+    body.innerHTML = users.map(u => `
+      <tr data-email="${u.email}">
+        <td>${escapeHtml(u.name||'-')}</td>
+        <td>${escapeHtml(u.email)}</td>
+        <td><span class="badge ${u.role}">${u.role}</span></td>
+        <td><span class="badge ${u.approved?'approved':'pending'}">${u.approved?'Disetujui':'Menunggu'}</span></td>
+        <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString('id-ID') : '-'}</td>
+        <td class="actions">
+          ${!u.approved ? `<button class="approve" onclick="doAction('${u.email}','approve')">Setujui</button>` : ''}
+          ${!u.approved ? `<button class="reject" onclick="doAction('${u.email}','reject')">Tolak</button>` : ''}
+          ${u.approved && u.role!=='admin' ? `<button class="promote" onclick="doAction('${u.email}','promote')">Jadikan Admin</button>` : ''}
+          ${u.role==='admin' ? `<button class="demote" onclick="doAction('${u.email}','demote')">Turunkan ke User</button>` : ''}
+          ${u.approved ? `<button class="delete" onclick="doAction('${u.email}','delete')">Hapus</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+    table.style.display = '';
+    empty.style.display = 'none';
+  }catch(err){
+    empty.textContent = 'Terjadi kesalahan jaringan.';
+  }
+}
+
+async function doAction(email, action){
+  const msg = document.getElementById('msg');
+  msg.className = 'msg';
+  try{
+    const res = await fetch('/api/admin/manage', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email, action })
+    });
+    const data = await res.json();
+    if(!res.ok){ msg.className='msg err'; msg.textContent = data.error || 'Aksi gagal'; return; }
+    msg.className='msg ok'; msg.textContent = 'Berhasil diperbarui.';
+    loadUsers();
+  }catch(err){
+    msg.className='msg err'; msg.textContent = 'Terjadi kesalahan jaringan.';
+  }
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+loadUsers();
+</script>
+</body>
+</html>

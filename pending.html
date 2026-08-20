@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menunggu Persetujuan — Wira Sandi</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#e8e8e5;font-family:'IBM Plex Sans',sans-serif;color:#1a1a18;}
+  .card{max-width:380px;background:#fff;border:1px solid #d8d8d2;border-radius:4px;padding:32px 28px;text-align:center;}
+  h1{font-size:15px;margin:0 0 10px;}
+  p{font-size:13px;color:#5a5a55;line-height:1.6;}
+  button{margin-top:16px;padding:9px 18px;border:1px solid #c5c5bd;background:transparent;border-radius:2px;font-weight:600;font-size:12px;cursor:pointer;}
+  button:hover{background:#d42b2b;color:#fff;border-color:#d42b2b;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>⏳ Menunggu Persetujuan Admin</h1>
+  <p>Akun Anda sudah terdaftar tapi belum disetujui oleh admin. Hubungi admin Wira Sandi untuk mengaktifkan akses Anda.</p>
+  <button onclick="fetch('/api/logout',{method:'POST'}).then(()=>location.href='/login.html')">Kembali ke Login</button>
+</div>
+</body>
+</html>
