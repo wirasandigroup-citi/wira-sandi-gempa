@@ -76,7 +76,19 @@ export default {
       }
 
       if (path.startsWith('/api/')) return json({ error: 'Endpoint tidak ditemukan' }, { status: 404 });
-      return env.ASSETS.fetch(request);
+
+      const response = await env.ASSETS.fetch(request);
+      if ((path === '/' || path === '/index.html') && response.headers.get('content-type')?.includes('text/html')) {
+        return new HTMLRewriter()
+          .on('title', { element(element) { element.setInnerContent('WIRA SANDI - Gempa Monitoring'); } })
+          .on('head', { element(element) {
+            element.append('<meta name="description" content="WIRA SANDI - Gempa Monitoring">', { html: true });
+            element.append('<meta property="og:title" content="WIRA SANDI - Gempa Monitoring">', { html: true });
+            element.append('<meta property="og:description" content="WIRA SANDI - Gempa Monitoring">', { html: true });
+          }})
+          .transform(response);
+      }
+      return response;
     } catch (err) {
       return json({ error: 'Server error', detail: String(err?.message || err) }, { status: 500 });
     }
