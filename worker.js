@@ -75,22 +75,67 @@ export default {
         return json({ ok: true });
       }
 
-      if (path.startsWith('/api/')) return json({ error: 'Endpoint tidak ditemukan' }, { status: 404 });
+     if (path.startsWith('/api/')) {
+  return json({ error: 'Endpoint tidak ditemukan' }, { status: 404 });
+}
 
-      const response = await env.ASSETS.fetch(request);
-      if ((path === '/' || path === '/index.html') && response.headers.get('content-type')?.includes('text/html')) {
-        return new HTMLRewriter()
-          .on('title', { element(element) { element.setInnerContent('WIRA SANDI - Gempa Monitoring'); } })
-          .on('head', { element(element) {
-            element.append('<meta name="description" content="WIRA SANDI - Gempa Monitoring">', { html: true });
-            element.append('<meta property="og:title" content="WIRA SANDI - Gempa Monitoring">', { html: true });
-            element.append('<meta property="og:description" content="WIRA SANDI - Gempa Monitoring">', { html: true });
-          }})
-          .transform(response);
-      }
-      return response;
-    } catch (err) {
-      return json({ error: 'Server error', detail: String(err?.message || err) }, { status: 500 });
-    }
+/* =========================================
+   PROTEKSI HALAMAN - LOGIN WAJIB
+========================================= */
+
+// Halaman yang boleh dibuka tanpa login
+const publicPaths = [
+  '/login.html',
+  '/register.html',
+  '/pending.html'
+];
+
+// File aset yang boleh langsung diakses
+const isAsset =
+  path.startsWith('/assets/') ||
+  path.endsWith('.css') ||
+  path.endsWith('.js') ||
+  path.endsWith('.png') ||
+  path.endsWith('.jpg') ||
+  path.endsWith('.jpeg') ||
+  path.endsWith('.svg') ||
+  path.endsWith('.ico') ||
+  path.endsWith('.woff') ||
+  path.endsWith('.woff2');
+
+// Jika bukan halaman publik atau aset, cek session login
+if (!publicPaths.includes(path) && !isAsset) {
+
+  const pageUser = await getSessionUser(request, env);
+
+  // Belum login
+  if (!pageUser) {
+    return Response.redirect(
+      `${url.origin}/login.html?redirect=${encodeURIComponent(path)}`,
+      302
+    );
   }
-};
+
+  // User belum disetujui admin
+  if (!pageUser.approved) {
+    return Response.redirect(
+      `${url.origin}/pending.html`,
+      302
+    );
+  }
+
+  // Halaman admin hanya untuk admin
+  if (
+    (path === '/admin.html' || path.startsWith('/admin/')) &&
+    pageUser.role !== 'admin'
+  ) {
+    return Response.redirect(`${url.origin}/`, 302);
+  }
+}
+
+
+/* =========================================
+   LOAD WEBSITE
+========================================= */
+
+const response = await env.ASSETS.fetch(request);
